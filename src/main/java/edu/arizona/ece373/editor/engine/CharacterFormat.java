@@ -5,7 +5,6 @@ import java.util.Objects;
 /**
  *  Represents the character formatting applied to a text run:
  *  bold, italic, size, font, and color.
- *
  *  Instances are immutable. To change formatting, create a new CharacterFormat
  *  rather than modifying an existing one, so formats can be shared between
  *  text runs and saved for undo.
