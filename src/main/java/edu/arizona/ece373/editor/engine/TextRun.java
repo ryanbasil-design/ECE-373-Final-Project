@@ -5,7 +5,6 @@ import java.util.Objects;
 /**
  * Represents a continuous piece of text within a paragraph that shares
  * the same character format.
- *
  * Instances are immutable. Editing operations in paragraphs replace runs with new
  * TextRun objects instead of modifying existing ones.
  */
