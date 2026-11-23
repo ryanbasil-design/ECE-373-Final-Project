@@ -68,4 +68,46 @@ public class CommandParserTest {
         assertEquals("start", command.arguments().get(0));
         assertEquals("formatting", command.arguments().get(1));
     }
+
+    @Test
+    void testNegativePosition() {
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("insert 0 -5 \"Hello\""));
+    }
+
+    @Test
+    void testInvalidWidth() {
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("width 0"));
+    }
+
+    @Test
+    void testInvalidReplaceArguments() {
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parse(
+                        "replace \"Java\" \"Python\" wrong"));
+    }
+
+    @Test
+    void testInvalidDeleteRange() {
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("delete 0 10 5"));
+    }
+
+    @Test
+    void testValidInsertCommand() {
+        var command =
+                parser.parse("insert 0 5 \"Hello world\"");
+
+        assertEquals("insert", command.name());
+        assertEquals(3, command.arguments().size());
+        assertEquals("Hello world",
+                command.arguments().get(2));
+    }
+
+    @Test
+    void testInvalidBreaker() {
+        assertThrows(IllegalArgumentException.class,
+                () -> parser.parse("breaker unknown"));
+    }
 }

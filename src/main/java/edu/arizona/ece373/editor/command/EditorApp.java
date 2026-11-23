@@ -160,6 +160,12 @@ public class EditorApp {
                 break;
 
 
+            case "replace":
+            case "replaceall":
+                handleReplace(name, args, output);
+                break;
+
+
             case "undo":
                 if (editingBridge == null) {
                     throw new IllegalStateException(
@@ -182,8 +188,6 @@ public class EditorApp {
             case "paragraph":
             case "insert":
             case "delete":
-            case "replace":
-            case "replaceall":
             case "move":
             case "split":
             case "merge":
@@ -241,24 +245,162 @@ public class EditorApp {
         }
     }
 
+
+    // Handles replacing the first match or every match
+    private void handleReplace(String name,
+                               List<String> args,
+                               PrintStream output) {
+
+        if (args.size() != 3) {
+            throw new IllegalArgumentException(
+                    "Usage: " + name
+                            + " \"old text\" \"new text\" whole/substring");
+        }
+
+        String searchText = args.get(0);
+        String newText = args.get(1);
+        String mode = args.get(2);
+
+        if (!mode.equals("whole") && !mode.equals("substring")) {
+            throw new IllegalArgumentException(
+                    "Search mode must be whole or substring");
+        }
+
+        boolean wholeWord = mode.equals("whole");
+
+        List<SearchEngine.Replacement> replacements;
+
+        if (name.equals("replace")) {
+            replacements = searchEngine.planReplaceFirst(
+                    document, searchText, newText, wholeWord);
+        } else {
+            replacements = searchEngine.planReplaceAll(
+                    document, searchText, newText, wholeWord);
+        }
+
+        if (replacements.isEmpty()) {
+            output.println("No matches found.");
+            return;
+        }
+
+        if (editingBridge == null) {
+            throw new IllegalStateException(
+                    "Editing system is not connected yet");
+        }
+
+        // All replacements are passed as one operation
+        editingBridge.executeReplacements(replacements);
+
+        output.println("Replacements completed: "
+                + replacements.size());
+    }
+
+
     // Handles macro recording. Replay still needs the editing/history system.
+
+    // Starts, stops, or replays a macro
     private void handleMacro(List<String> args, PrintStream output) {
         String action = args.get(0);
+
         switch (action) {
             case "start":
                 macroRecorder.startRecording(args.get(1));
                 output.println("Recording started.");
                 break;
+
             case "stop":
                 macroRecorder.stopRecording();
                 output.println("Recording saved.");
                 break;
+
             case "replay":
-                throw new IllegalStateException("Macro replay is not connected yet");
+                replayMacro(args.get(1), output);
+                break;
+
             default:
-                throw new IllegalArgumentException("Unknown macro action");
+                throw new IllegalArgumentException(
+                        "Unknown macro action");
         }
     }
+
+    // Replays a previously saved macro
+    private void replayMacro(String name, PrintStream output) {
+
+        if (macroRecorder.isRecording()) {
+            throw new IllegalStateException(
+                    "Stop recording before replaying a macro");
+        }
+
+        List<String> savedCommands = macroRecorder.getCommands(name);
+        List<CommandParser.ParsedCommand> commands =
+                new java.util.ArrayList<>();
+
+        // Parse all commands before doing anything
+        for (String line : savedCommands) {
+            commands.add(parser.parse(line));
+        }
+
+        if (commands.isEmpty()) {
+            output.println("Macro replayed: " + name);
+            return;
+        }
+
+        boolean allEditing = true;
+        boolean allReadOnly = true;
+
+        for (CommandParser.ParsedCommand command : commands) {
+            String type = command.name();
+
+            if (!isEditingCommand(type)) {
+                allEditing = false;
+            }
+
+            if (!isReadOnlyMacroCommand(type)) {
+                allReadOnly = false;
+            }
+        }
+
+        if (allEditing) {
+            if (editingBridge == null) {
+                throw new IllegalStateException(
+                        "Editing system is not connected yet");
+            }
+
+            // One batch will become one history entry
+            editingBridge.executeBatch(commands);
+        }
+        else if (allReadOnly) {
+            for (CommandParser.ParsedCommand command : commands) {
+                execute(command, output);
+            }
+        }
+        else {
+            throw new IllegalArgumentException(
+                    "This macro contains unsupported or mixed commands");
+        }
+
+        output.println("Macro replayed: " + name);
+    }
+
+    // Commands that modify the document
+    private boolean isEditingCommand(String name) {
+        return switch (name) {
+            case "section", "paragraph", "insert", "delete",
+                 "replace", "replaceall", "move", "split",
+                 "merge", "format" -> true;
+            default -> false;
+        };
+    }
+
+    // Commands that can be replayed without changing the document
+    private boolean isReadOnlyMacroCommand(String name) {
+        return switch (name) {
+            case "help", "stats", "find", "view",
+                 "width", "breaker" -> true;
+            default -> false;
+        };
+    }
+
 
     public static void main(String[] args) throws IOException {
         EditorApp app = new EditorApp();

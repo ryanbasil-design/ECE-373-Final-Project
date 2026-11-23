@@ -1,7 +1,8 @@
 
 package edu.arizona.ece373.editor.command;
-import edu.arizona.ece373.editor.engine.Paragraph;
+
 import edu.arizona.ece373.editor.engine.CharacterFormat;
+import edu.arizona.ece373.editor.engine.Paragraph;
 
 import org.junit.jupiter.api.Test;
 
@@ -9,12 +10,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EditorAppTest {
 
-    // Runs commands and returns the console output
+    // Runs commands and returns the output
     private String runCommands(String commands) throws Exception {
         EditorApp app = new EditorApp();
 
@@ -116,8 +118,8 @@ public class EditorAppTest {
         assertTrue(result.contains("Checkpoint saved: first"));
         assertTrue(result.contains("Checkpoint restored: first"));
 
-        // Both statistics requests should work
-        assertEquals(2, result.split("Words: 0", -1).length - 1);
+        assertEquals(2,
+                result.split("Words: 0", -1).length - 1);
     }
 
     @Test
@@ -175,12 +177,23 @@ public class EditorAppTest {
         assertTrue(result.contains("Hello\nworld from\nECE 373"));
     }
 
-    // Fake editing system used for testing
+    // Fake editing system used to test the connection
     private static class FakeEditingBridge implements EditingBridge {
 
         String lastCommand;
         int undoCount = 0;
         int redoCount = 0;
+        int batchCount = 0;
+
+        int replacementCount = 0;
+
+        @Override
+        public void executeReplacements(
+                List<SearchEngine.Replacement> replacements) {
+
+            replacementCount = replacements.size();
+        }
+
 
         @Override
         public void execute(CommandParser.ParsedCommand command) {
@@ -196,6 +209,14 @@ public class EditorAppTest {
         public void redo() {
             redoCount++;
         }
+
+        // Records when a group of commands is received
+        @Override
+        public void executeBatch(
+                List<CommandParser.ParsedCommand> commands) {
+
+            batchCount++;
+        }
     }
 
     @Test
@@ -208,7 +229,8 @@ public class EditorAppTest {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintStream output = new PrintStream(bytes)) {
-            app.run(new StringReader("insert 0 5 \"Hello\"\n"), output);
+            app.run(new StringReader(
+                    "insert 0 5 \"Hello\"\n"), output);
         }
 
         assertEquals("insert", bridge.lastCommand);
@@ -224,7 +246,8 @@ public class EditorAppTest {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintStream output = new PrintStream(bytes)) {
-            app.run(new StringReader("undo\nredo\n"), output);
+            app.run(new StringReader(
+                    "undo\nredo\n"), output);
         }
 
         assertEquals(1, bridge.undoCount);
@@ -238,7 +261,8 @@ public class EditorAppTest {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintStream output = new PrintStream(bytes)) {
-            app.run(new StringReader("insert 0 5 \"Hello\"\n"), output);
+            app.run(new StringReader(
+                    "insert 0 5 \"Hello\"\n"), output);
         }
 
         assertTrue(bytes.toString().contains(
@@ -249,25 +273,26 @@ public class EditorAppTest {
     void testCheckpointRestoreUpdatesViewAndStats() throws Exception {
         EditorApp app = new EditorApp();
 
-        // Create the original document
+        // Create original document
         app.getDocument().add(new Paragraph(
                 "Hello world", CharacterFormat.DEFAULT));
+
         app.getDocument().notifyObservers();
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintStream output = new PrintStream(bytes)) {
 
-            // Save the original version
             app.run(new StringReader(
                     "checkpoint save original\n"), output);
 
-            // Make another change after saving
+            // Add text after saving the checkpoint
             app.getDocument().add(new Paragraph(
                     "Extra text", CharacterFormat.DEFAULT));
+
             app.getDocument().notifyObservers();
 
-            // Restore and inspect the saved version
+            // Restore the saved document
             app.run(new StringReader(
                     "checkpoint restore original\n"
                             + "view\n"
@@ -284,5 +309,109 @@ public class EditorAppTest {
         assertTrue(result.contains("Paragraphs: 1"));
     }
 
+    // Tests the new batch editing connection
+    @Test
+    void testEditingBridgeBatch() {
+        FakeEditingBridge bridge = new FakeEditingBridge();
+
+        CommandParser parser = new CommandParser();
+
+        var first = parser.parse("insert 0 0 \"Hello\"");
+        var second = parser.parse("insert 0 5 \" world\"");
+
+        bridge.executeBatch(List.of(first, second));
+
+        assertEquals(1, bridge.batchCount);
+    }
+
+    @Test
+    void testMacroReplayUsesBatch() throws Exception {
+        EditorApp app = new EditorApp();
+        FakeEditingBridge bridge = new FakeEditingBridge();
+
+        app.setEditingBridge(bridge);
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        try (PrintStream output = new PrintStream(bytes)) {
+            app.run(new StringReader(
+                    "macro start editing\n"
+                            + "insert 0 0 \"Hello\"\n"
+                            + "insert 0 5 \" world\"\n"
+                            + "macro stop\n"
+                            + "macro replay editing\n"
+                            + "exit\n"), output);
+        }
+
+        // Two commands execute during recording
+        assertEquals("insert", bridge.lastCommand);
+
+        // Replay sends one batch
+        assertEquals(1, bridge.batchCount);
+
+        assertTrue(bytes.toString().contains(
+                "Macro replayed: editing"));
+    }
+
+    @Test
+    void testMacroReplayWithoutBridge() throws Exception {
+        EditorApp app = new EditorApp();
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        try (PrintStream output = new PrintStream(bytes)) {
+            app.run(new StringReader(
+                    "macro start test\n"
+                            + "macro stop\n"
+                            + "macro replay test\n"
+                            + "exit\n"), output);
+        }
+
+        // Empty macros can replay without editing
+        assertTrue(bytes.toString().contains(
+                "Macro replayed: test"));
+    }
+
+    @Test
+    void testReplaceAllUsesBridge() throws Exception {
+        EditorApp app = new EditorApp();
+        FakeEditingBridge bridge = new FakeEditingBridge();
+        app.setEditingBridge(bridge);
+
+        app.getDocument().add(new Paragraph(
+                "Java and Java", CharacterFormat.DEFAULT));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        try (PrintStream output = new PrintStream(bytes)) {
+            app.run(new StringReader(
+                    "replaceall \"Java\" \"Python\" whole\n"), output);
+        }
+
+        assertEquals(2, bridge.replacementCount);
+        assertTrue(bytes.toString().contains(
+                "Replacements completed: 2"));
+    }
+
+    @Test
+    void testReplaceFirstUsesBridge() throws Exception {
+        EditorApp app = new EditorApp();
+        FakeEditingBridge bridge = new FakeEditingBridge();
+        app.setEditingBridge(bridge);
+
+        app.getDocument().add(new Paragraph(
+                "Java and Java", CharacterFormat.DEFAULT));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+
+        try (PrintStream output = new PrintStream(bytes)) {
+            app.run(new StringReader(
+                    "replace \"Java\" \"Python\" whole\n"), output);
+        }
+
+        assertEquals(1, bridge.replacementCount);
+        assertTrue(bytes.toString().contains(
+                "Replacements completed: 1"));
+    }
 
 }
