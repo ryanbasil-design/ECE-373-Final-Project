@@ -228,4 +228,77 @@ public class Paragraph extends DocumentElement {
         }
         this.runs.addAll(mergeAdjacent(nonEmpty));
     }
+
+    /**
+     * Returns copies of the runs that cover the range from start up to end,
+     * keeping each piece's format. Runs that are only partly inside the range
+     * are cut at the range edges.
+     *
+     * @param start the first character position, inclusive
+     * @param end   the last character position, exclusive
+     * @return the runs inside the range, in order
+     * @throws IndexOutOfBoundsException if the range is outside the paragraph
+     */
+    public List<TextRun> getRuns(int start, int end) {
+        checkRange(start, end);
+        List<TextRun> slice = new ArrayList<>();
+        int runStart = 0;
+        for (TextRun run : runs) {
+            int runEnd = runStart + run.length();
+            int from = Math.max(start, runStart);
+            int to = Math.min(end, runEnd);
+            if (from < to) {
+                slice.add(new TextRun(run.getText().substring(from - runStart, to - runStart),
+                        run.getFormat()));
+            }
+            runStart = runEnd;
+        }
+        return slice;
+    }
+
+    /**
+     * Inserts the given runs at a character position, keeping each run's own
+     * format. This is used when text is moved so its formatting moves with it.
+     *
+     * @param position where to insert, from 0 up to the paragraph length
+     * @param inserted the runs to insert, in order
+     * @throws IndexOutOfBoundsException if position is outside the paragraph
+     * @throws NullPointerException      if inserted is null
+     */
+    public void insertRuns(int position, List<TextRun> inserted) {
+        Objects.requireNonNull(inserted, "inserted must not be null");
+        checkPosition(position);
+        List<TextRun> updated = new ArrayList<>(getRuns(0, position));
+        updated.addAll(inserted);
+        updated.addAll(getRuns(position, countChars()));
+        setRuns(updated);
+    }
+
+    /**
+     * Replaces every run in this paragraph with the given runs. Empty runs are
+     * dropped and neighboring runs with the same format are merged. Editing
+     * commands use this to put a paragraph back the way it was on undo.
+     *
+     * @param newRuns the runs the paragraph should hold
+     * @throws NullPointerException if newRuns or any run in it is null
+     */
+    public void setRuns(List<TextRun> newRuns) {
+        Objects.requireNonNull(newRuns, "newRuns must not be null");
+        List<TextRun> nonEmpty = new ArrayList<>();
+        for (TextRun run : newRuns) {
+            Objects.requireNonNull(run, "runs must not contain null");
+            if (run.length() > 0) {
+                nonEmpty.add(run);
+            }
+        }
+        runs.clear();
+        runs.addAll(mergeAdjacent(nonEmpty));
+    }
+
+    private void checkRange(int start, int end) {
+        if (start < 0 || end < start || end > countChars()) {
+            throw new IndexOutOfBoundsException(
+                    "range " + start + "-" + end + " is outside the paragraph (length " + countChars() + ")");
+        }
+    }
 }
