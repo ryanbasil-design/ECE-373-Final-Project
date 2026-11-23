@@ -11,6 +11,9 @@ import java.util.Objects;
  */
 public class CharacterFormat {
 
+    /** The format used for new text when there is no neighboring text to copy a format from. */
+    public static final CharacterFormat DEFAULT = new CharacterFormat(false, false, 12, "Arial", "black");
+
     private final boolean italic;
     private final boolean bold;
     private final int size;
