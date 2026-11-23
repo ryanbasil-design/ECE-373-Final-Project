@@ -95,4 +95,59 @@ public class SearchEngineTest {
         assertEquals(2,
                 engine.find(document, "Java", true).size());
     }
+
+    @Test
+    void testPlanReplaceFirst() {
+        Document document = new Document();
+        document.add(new Paragraph(
+                "Java and Java", CharacterFormat.DEFAULT));
+
+        SearchEngine engine = new SearchEngine();
+
+        var replacements = engine.planReplaceFirst(
+                document, "Java", "Python", true);
+
+        assertEquals(1, replacements.size());
+        assertEquals(0, replacements.get(0).start());
+        assertEquals("Python", replacements.get(0).newText());
+
+        // Planning should not change the document
+        assertEquals("Java and Java", document.getText());
+    }
+
+    @Test
+    void testPlanReplaceAll() {
+        Document document = new Document();
+        document.add(new Paragraph(
+                "Java and Java", CharacterFormat.DEFAULT));
+
+        SearchEngine engine = new SearchEngine();
+
+        var replacements = engine.planReplaceAll(
+                document, "Java", "Python", true);
+
+        assertEquals(2, replacements.size());
+
+        // Later match comes first
+        assertEquals(9, replacements.get(0).start());
+        assertEquals(0, replacements.get(1).start());
+
+        assertEquals("Java and Java", document.getText());
+    }
+
+    @Test
+    void testReplaceNoMatches() {
+        Document document = new Document();
+        document.add(new Paragraph(
+                "Hello world", CharacterFormat.DEFAULT));
+
+        SearchEngine engine = new SearchEngine();
+
+        var replacements = engine.planReplaceAll(
+                document, "Java", "Python", true);
+
+        assertTrue(replacements.isEmpty());
+        assertEquals("Hello world", document.getText());
+    }
+
 }

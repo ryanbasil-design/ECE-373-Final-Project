@@ -16,6 +16,72 @@ public class SearchEngine {
                               int start, int length) {
     }
 
+    // Describes one replacement without changing the document
+    public record Replacement(Paragraph paragraph,
+                              int start,
+                              int length,
+                              String newText) {
+    }
+
+    // Prepares a replacement for the first match
+    public List<Replacement> planReplaceFirst(
+            Document document,
+            String searchText,
+            String replacement,
+            boolean wholeWord) {
+
+        if (replacement == null) {
+            throw new IllegalArgumentException(
+                    "Replacement text cannot be null");
+        }
+
+        List<SearchMatch> matches =
+                find(document, searchText, wholeWord);
+
+        if (matches.isEmpty()) {
+            return List.of();
+        }
+
+        SearchMatch first = matches.get(0);
+
+        return List.of(new Replacement(
+                first.paragraph(),
+                first.start(),
+                first.length(),
+                replacement));
+    }
+
+    // Prepares all replacements in reverse order
+    public List<Replacement> planReplaceAll(
+            Document document,
+            String searchText,
+            String replacement,
+            boolean wholeWord) {
+
+        if (replacement == null) {
+            throw new IllegalArgumentException(
+                    "Replacement text cannot be null");
+        }
+
+        List<SearchMatch> matches =
+                find(document, searchText, wholeWord);
+
+        List<Replacement> replacements = new ArrayList<>();
+
+        for (int i = matches.size() - 1; i >= 0; i--) {
+            SearchMatch match = matches.get(i);
+
+            replacements.add(new Replacement(
+                    match.paragraph(),
+                    match.start(),
+                    match.length(),
+                    replacement));
+        }
+
+        return replacements;
+    }
+
+
     // Searches the entire document
     public List<SearchMatch> find(Document document,
                                   String searchText,
