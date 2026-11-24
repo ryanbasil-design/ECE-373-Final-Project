@@ -254,20 +254,33 @@ public class EditorAppTest {
         assertEquals(1, bridge.redoCount);
     }
 
+
     @Test
-    void testEditingWithoutBridgeShowsError() throws Exception {
+    void testEditingBridgeConnectedAutomatically() throws Exception {
         EditorApp app = new EditorApp();
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 
         try (PrintStream output = new PrintStream(bytes)) {
             app.run(new StringReader(
-                    "insert 0 5 \"Hello\"\n"), output);
+                    "paragraph \"Hello\"\n"
+                            + "insert 0 5 \" world\"\n"
+                            + "view plain\n"
+                            + "undo\n"
+                            + "view plain\n"), output);
         }
 
-        assertTrue(bytes.toString().contains(
+        String result = bytes.toString();
+
+        // The real editing system should work automatically
+        assertTrue(result.contains("Hello world"));
+        assertTrue(result.contains("Undo completed."));
+
+        // The editor should not show the old connection error
+        assertFalse(result.contains(
                 "Editing system is not connected yet"));
     }
+
 
     @Test
     void testCheckpointRestoreUpdatesViewAndStats() throws Exception {

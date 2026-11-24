@@ -19,7 +19,9 @@ public class CommandParser {
     );
 
     // Holds the command and its arguments
-    public record ParsedCommand(String name, List<String> arguments) {
+    public record ParsedCommand(
+            String name, List<String> arguments) {
+
         public ParsedCommand {
             arguments = List.copyOf(arguments);
         }
@@ -27,6 +29,7 @@ public class CommandParser {
 
     // Converts user input into a command
     public ParsedCommand parse(String input) {
+
         if (input == null || input.isBlank()) {
             throw new IllegalArgumentException(
                     "Command cannot be empty");
@@ -41,15 +44,17 @@ public class CommandParser {
         }
 
         List<String> arguments =
-                new ArrayList<>(words.subList(1, words.size()));
+                new ArrayList<>(
+                        words.subList(1, words.size()));
 
         validate(name, arguments);
 
         return new ParsedCommand(name, arguments);
     }
 
-    // Splits input without splitting text inside quotes
+    // Keeps quoted text together as one argument
     private List<String> tokenize(String input) {
+
         List<String> words = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 
@@ -57,6 +62,7 @@ public class CommandParser {
         boolean started = false;
 
         for (int i = 0; i < input.length(); i++) {
+
             char c = input.charAt(i);
 
             if (c == '"') {
@@ -64,6 +70,7 @@ public class CommandParser {
                 started = true;
             }
             else if (Character.isWhitespace(c) && !inQuotes) {
+
                 if (started) {
                     words.add(current.toString());
                     current.setLength(0);
@@ -88,8 +95,9 @@ public class CommandParser {
         return words;
     }
 
-    // Checks the arguments for each command
-    private void validate(String name, List<String> args) {
+    // Validates each command
+    private void validate(
+            String name, List<String> args) {
 
         switch (name) {
 
@@ -106,12 +114,13 @@ public class CommandParser {
 
                 if (!args.get(0).equals("save")
                         && !args.get(0).equals("restore")) {
+
                     throw new IllegalArgumentException(
                             "Invalid checkpoint action");
                 }
 
-                requireNonBlank(args.get(1),
-                        "Checkpoint name");
+                requireNonBlank(
+                        args.get(1), "Checkpoint name");
                 break;
 
             case "macro":
@@ -140,6 +149,7 @@ public class CommandParser {
                 if (!args.isEmpty()
                         && !Set.of("plain", "markup")
                         .contains(args.get(0))) {
+
                     throw new IllegalArgumentException(
                             "Invalid view type");
                 }
@@ -147,7 +157,9 @@ public class CommandParser {
 
             case "width":
                 requireCount(name, args, 1);
-                requireNumber(args.get(0), "Width", false);
+
+                requireNumber(
+                        args.get(0), "Width", false);
                 break;
 
             case "breaker":
@@ -155,6 +167,7 @@ public class CommandParser {
 
                 if (!Set.of("greedy", "balanced")
                         .contains(args.get(0))) {
+
                     throw new IllegalArgumentException(
                             "Invalid line breaker");
                 }
@@ -162,18 +175,29 @@ public class CommandParser {
 
             case "insert":
                 requireCount(name, args, 3);
-                requireNumber(args.get(0), "Paragraph index", true);
-                requireNumber(args.get(1), "Position", true);
+
+                requireNumber(
+                        args.get(0), "Paragraph index", true);
+
+                requireNumber(
+                        args.get(1), "Position", true);
                 break;
 
             case "delete":
                 requireCount(name, args, 3);
-                requireNumber(args.get(0), "Paragraph index", true);
-                requireNumber(args.get(1), "Start position", true);
-                requireNumber(args.get(2), "End position", true);
+
+                requireNumber(
+                        args.get(0), "Paragraph index", true);
+
+                requireNumber(
+                        args.get(1), "Start position", true);
+
+                requireNumber(
+                        args.get(2), "End position", true);
 
                 if (Integer.parseInt(args.get(2))
                         < Integer.parseInt(args.get(1))) {
+
                     throw new IllegalArgumentException(
                             "End position cannot be before start");
                 }
@@ -181,24 +205,133 @@ public class CommandParser {
 
             case "split":
                 requireCount(name, args, 2);
-                requireNumber(args.get(0), "Paragraph index", true);
-                requireNumber(args.get(1), "Position", true);
+
+                requireNumber(
+                        args.get(0), "Paragraph index", true);
+
+                requireNumber(
+                        args.get(1), "Position", true);
                 break;
 
             case "merge":
                 requireCount(name, args, 1);
-                requireNumber(args.get(0), "Paragraph index", true);
+
+                requireNumber(
+                        args.get(0), "Paragraph index", true);
                 break;
 
             case "move":
-                requireMinimumCount(name, args, 3);
+                requireCount(name, args, 5);
+
+                for (int i = 0; i < 5; i++) {
+                    requireNumber(
+                            args.get(i),
+                            "Move argument " + (i + 1),
+                            true);
+                }
+
+                if (Integer.parseInt(args.get(2))
+                        < Integer.parseInt(args.get(1))) {
+
+                    throw new IllegalArgumentException(
+                            "Move end cannot be before start");
+                }
                 break;
 
             case "section":
             case "paragraph":
-            case "format":
-                requireMinimumCount(name, args, 1);
+
+                if (args.size() != 1 && args.size() != 3) {
+                    throw new IllegalArgumentException(
+                            "Usage: " + name
+                                    + " \"text\" [inside sectionIndex]");
+                }
+
+                if (args.size() == 3) {
+
+                    if (!args.get(1).equals("inside")) {
+                        throw new IllegalArgumentException(
+                                "Expected inside sectionIndex");
+                    }
+
+                    requireNumber(
+                            args.get(2),
+                            "Section index",
+                            true);
+                }
                 break;
+
+            case "format": {
+
+                boolean title =
+                        !args.isEmpty()
+                                && args.get(0).equals("title");
+
+                int offset = title ? 1 : 0;
+
+                if (args.size() != offset + 4
+                        && args.size() != offset + 5) {
+
+                    throw new IllegalArgumentException(
+                            "Usage: format [title] index "
+                                    + "start end style [value]");
+                }
+
+                for (int i = offset; i < offset + 3; i++) {
+                    requireNumber(
+                            args.get(i),
+                            "Formatting position",
+                            true);
+                }
+
+                if (Integer.parseInt(
+                        args.get(offset + 2))
+                        < Integer.parseInt(
+                        args.get(offset + 1))) {
+
+                    throw new IllegalArgumentException(
+                            "Invalid formatting range");
+                }
+
+                String style = args.get(offset + 3);
+
+                boolean needsValue =
+                        Set.of("font", "size", "color")
+                                .contains(style);
+
+                if (!needsValue
+                        && !Set.of(
+                                "bold", "italic",
+                                "unbold", "unitalic")
+                        .contains(style)) {
+
+                    throw new IllegalArgumentException(
+                            "Unknown formatting style: "
+                                    + style);
+                }
+
+                if (needsValue
+                        != (args.size() == offset + 5)) {
+
+                    throw new IllegalArgumentException(
+                            "Wrong number of format arguments");
+                }
+
+                if (needsValue
+                        && args.get(offset + 4).isBlank()) {
+
+                    throw new IllegalArgumentException(
+                            "Format value cannot be empty");
+                }
+
+                if (style.equals("size")) {
+                    requireNumber(
+                            args.get(offset + 4),
+                            "Font size", false);
+                }
+
+                break;
+            }
 
             default:
                 throw new IllegalArgumentException(
@@ -208,11 +341,14 @@ public class CommandParser {
 
     // Checks macro commands
     private void validateMacro(List<String> args) {
+
         requireMinimumCount("macro", args, 1);
 
         String action = args.get(0);
 
-        if (!Set.of("start", "stop", "replay").contains(action)) {
+        if (!Set.of("start", "stop", "replay")
+                .contains(action)) {
+
             throw new IllegalArgumentException(
                     "Invalid macro action");
         }
@@ -222,32 +358,42 @@ public class CommandParser {
         }
         else {
             requireCount("macro " + action, args, 2);
-            requireNonBlank(args.get(1), "Macro name");
+
+            requireNonBlank(
+                    args.get(1), "Macro name");
         }
     }
 
-    // Checks search mode
+    // Checks search modes
     private void validateSearchMode(String mode) {
-        if (!Set.of("whole", "substring").contains(mode)) {
+
+        if (!Set.of("whole", "substring")
+                .contains(mode)) {
+
             throw new IllegalArgumentException(
                     "Search mode must be whole or substring");
         }
     }
 
-    // Requires an exact number of arguments
-    private void requireCount(String name,
-                              List<String> args,
-                              int count) {
+    // Requires exactly the given argument count
+    private void requireCount(
+            String name,
+            List<String> args,
+            int count) {
+
         if (args.size() != count) {
             throw new IllegalArgumentException(
-                    name + " requires " + count + " arguments");
+                    name + " requires "
+                            + count + " arguments");
         }
     }
 
-    // Requires at least a certain number of arguments
-    private void requireMinimumCount(String name,
-                                     List<String> args,
-                                     int count) {
+    // Requires at least the given argument count
+    private void requireMinimumCount(
+            String name,
+            List<String> args,
+            int count) {
+
         if (args.size() < count) {
             throw new IllegalArgumentException(
                     name + " requires at least "
@@ -255,8 +401,11 @@ public class CommandParser {
         }
     }
 
-    // Checks for empty names or text
-    private void requireNonBlank(String value, String label) {
+    // Checks that text is not empty
+    private void requireNonBlank(
+            String value,
+            String label) {
+
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(
                     label + " cannot be empty");
@@ -264,16 +413,22 @@ public class CommandParser {
     }
 
     // Checks numeric arguments
-    private void requireNumber(String value,
-                               String label,
-                               boolean allowZero) {
+    private void requireNumber(
+            String value,
+            String label,
+            boolean allowZero) {
+
         try {
             int number = Integer.parseInt(value);
 
-            if (number < 0 || (!allowZero && number == 0)) {
+            if (number < 0
+                    || (!allowZero && number == 0)) {
+
                 throw new IllegalArgumentException(
                         label + " must be "
-                                + (allowZero ? "non-negative" : "positive"));
+                                + (allowZero
+                                ? "non-negative"
+                                : "positive"));
             }
         }
         catch (NumberFormatException e) {
@@ -281,5 +436,4 @@ public class CommandParser {
                     label + " must be a number");
         }
     }
-
 }

@@ -11,72 +11,78 @@ import java.io.PrintStream;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Starts the document editor and connects the command and presentation parts.
+ * Starts the document editor and connects all the parts.
  */
 public class EditorApp {
 
     private Document document;
+
     private final CommandParser parser;
     private final SearchEngine searchEngine;
     private final MacroRecorder macroRecorder;
     private final CheckpointManager checkpointManager;
+
     private DocumentView documentView;
     private DocumentStatistics statistics;
     private EditingBridge editingBridge;
 
-
     public EditorApp() {
+
         document = new Document();
+
         parser = new CommandParser();
         searchEngine = new SearchEngine();
         macroRecorder = new MacroRecorder();
         checkpointManager = new CheckpointManager();
 
         documentView = new DocumentView(document);
+
         statistics = new DocumentStatistics(document);
         document.addObserver(statistics);
+
+        // Connect Hunter's real editing system
+        setEditingBridge(
+                new HistoryEditingBridge(document));
     }
 
     public Document getDocument() {
         return document;
     }
 
-    // Connects the editing system when it is available
     public void setEditingBridge(EditingBridge bridge) {
+
         if (bridge == null) {
             throw new IllegalArgumentException(
                     "Editing bridge cannot be null");
         }
 
-        editingBridge = bridge;
+        this.editingBridge = bridge;
     }
 
-    // Sends an editing request to the editing system
-    private void executeEdit(CommandParser.ParsedCommand command) {
-        if (editingBridge == null) {
-            throw new IllegalStateException(
-                    "Editing system is not connected yet");
-        }
+    // Reads commands from console or script
+    public void run(
+            Reader input,
+            PrintStream output) throws IOException {
 
-        editingBridge.execute(command);
-    }
+        BufferedReader reader =
+                new BufferedReader(input);
 
-
-    // Reads commands entered by the user or provided by a script.
-    public void run(Reader input, PrintStream output) throws IOException {
-        BufferedReader reader = new BufferedReader(input);
         String line;
 
         while ((line = reader.readLine()) != null) {
+
             if (line.isBlank()) {
                 continue;
             }
 
             try {
-                CommandParser.ParsedCommand command = parser.parse(line);
+
+                CommandParser.ParsedCommand command =
+                        parser.parse(line);
 
                 if (command.name().equals("exit")) {
                     output.println("Goodbye!");
@@ -85,43 +91,75 @@ public class EditorApp {
 
                 execute(command, output);
 
-                // Record a successful command, but not macro controls themselves.
+                // Record successful commands
                 if (macroRecorder.isRecording()
                         && !command.name().equals("macro")) {
+
                     macroRecorder.recordCommand(line);
                 }
-            } catch (IllegalArgumentException | IllegalStateException e) {
-                output.println("Error: " + e.getMessage());
+
+            }
+            catch (IllegalArgumentException
+                   | IllegalStateException
+                   | IndexOutOfBoundsException e) {
+
+                output.println(
+                        "Error: " + e.getMessage());
             }
         }
     }
 
-    // Handles commands after they have been parsed.
-    private void execute(CommandParser.ParsedCommand command, PrintStream output) {
+    // Runs a parsed command
+    private void execute(
+            CommandParser.ParsedCommand command,
+            PrintStream output) {
+
         String name = command.name();
         List<String> args = command.arguments();
 
         switch (name) {
+
             case "help":
-                output.println("Available commands: help, stats, find, "
-                        + "checkpoint, macro, view, width, breaker, exit");
+                output.println(
+                        "Available commands: section, paragraph, "
+                                + "insert, delete, replace, replaceall, "
+                                + "move, split, merge, format, undo, redo, "
+                                + "checkpoint, find, macro, view, width, "
+                                + "breaker, stats, help, exit");
                 break;
 
             case "stats":
-                output.println("Words: " + statistics.getWordCount());
-                output.println("Characters: " + statistics.getCharCount());
-                output.println("Paragraphs: " + statistics.getParagraphCount());
+                output.println(
+                        "Words: " + statistics.getWordCount());
+
+                output.println(
+                        "Characters: " + statistics.getCharCount());
+
+                output.println(
+                        "Paragraphs: "
+                                + statistics.getParagraphCount());
                 break;
 
-            case "find":
-                boolean wholeWord = args.get(1).equals("whole");
+            case "find": {
+
+                boolean wholeWord =
+                        args.get(1).equals("whole");
+
                 int matches = searchEngine.find(
-                        document, args.get(0), wholeWord).size();
-                output.println("Matches found: " + matches);
+                        document,
+                        args.get(0),
+                        wholeWord).size();
+
+                output.println(
+                        "Matches found: " + matches);
                 break;
+            }
 
             case "checkpoint":
-                handleCheckpoint(args.get(0), args.get(1), output);
+                handleCheckpoint(
+                        args.get(0),
+                        args.get(1),
+                        output);
                 break;
 
             case "macro":
@@ -132,56 +170,60 @@ public class EditorApp {
                 handleView(args, output);
                 break;
 
-            case "width":
-                if (args.size() != 1) {
-                    throw new IllegalArgumentException("Usage: width number");
-                }
-                try {
-                    int width = Integer.parseInt(args.get(0));
-                    documentView.setWidth(width);
-                    output.println("Width set to: " + width);
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Width must be a number");
-                }
+            case "width": {
+
+                int width =
+                        Integer.parseInt(args.get(0));
+
+                documentView.setWidth(width);
+
+                output.println(
+                        "Width set to: " + width);
                 break;
+            }
 
             case "breaker":
-                if (args.size() != 1) {
-                    throw new IllegalArgumentException("Usage: breaker greedy/balanced");
-                }
-                if (args.get(0).equals("greedy")) {
-                    documentView.setLineBreaker(new GreedyLineBreaker());
-                } else if (args.get(0).equals("balanced")) {
-                    documentView.setLineBreaker(new BalancedLineBreaker());
-                } else {
-                    throw new IllegalArgumentException("Unknown line breaker");
-                }
-                output.println("Line breaker updated.");
-                break;
 
+                if (args.get(0).equals("greedy")) {
+
+                    documentView.setLineBreaker(
+                            new GreedyLineBreaker());
+                }
+                else if (args.get(0).equals("balanced")) {
+
+                    documentView.setLineBreaker(
+                            new BalancedLineBreaker());
+                }
+                else {
+                    throw new IllegalArgumentException(
+                            "Unknown line breaker");
+                }
+
+                output.println(
+                        "Line breaker updated.");
+                break;
 
             case "replace":
             case "replaceall":
                 handleReplace(name, args, output);
                 break;
 
-
             case "undo":
-                if (editingBridge == null) {
-                    throw new IllegalStateException(
-                            "Editing system is not connected yet");
-                }
+                requireEditingBridge();
+
                 editingBridge.undo();
-                output.println("Undo completed.");
+
+                output.println(
+                        "Undo completed.");
                 break;
 
             case "redo":
-                if (editingBridge == null) {
-                    throw new IllegalStateException(
-                            "Editing system is not connected yet");
-                }
+                requireEditingBridge();
+
                 editingBridge.redo();
-                output.println("Redo completed.");
+
+                output.println(
+                        "Redo completed.");
                 break;
 
             case "section":
@@ -192,64 +234,119 @@ public class EditorApp {
             case "split":
             case "merge":
             case "format":
-                executeEdit(command);
-                output.println("Command executed.");
+
+                requireEditingBridge();
+
+                editingBridge.execute(command);
+
+                output.println(
+                        "Command executed.");
                 break;
 
             default:
                 throw new IllegalArgumentException(
-                        "Command not implemented yet: " + name);
-
+                        "Command not implemented: " + name);
         }
     }
-    private void handleView(List<String> args, PrintStream output) {
+
+    // Makes sure the bridge is connected
+    private void requireEditingBridge() {
+
+        if (editingBridge == null) {
+            throw new IllegalStateException(
+                    "Editing system is not connected yet");
+        }
+    }
+
+    // Displays the document
+    private void handleView(
+            List<String> args,
+            PrintStream output) {
+
         if (args.isEmpty()) {
             output.println(documentView.render());
             return;
         }
-        if (args.size() != 1) {
-            throw new IllegalArgumentException("Usage: view [plain/markup]");
-        }
 
         if (args.get(0).equals("plain")) {
-            documentView.setRenderer(new PlainTextRenderer());
-        } else if (args.get(0).equals("markup")) {
-            documentView.setRenderer(new MarkupRenderer());
-        } else {
-            throw new IllegalArgumentException("Unknown view type");
+
+            documentView.setRenderer(
+                    new PlainTextRenderer());
         }
+        else if (args.get(0).equals("markup")) {
+
+            documentView.setRenderer(
+                    new MarkupRenderer());
+        }
+        else {
+            throw new IllegalArgumentException(
+                    "Unknown view type");
+        }
+
         output.println(documentView.render());
     }
 
-    // Stores and restores document snapshots.
-    private void handleCheckpoint(String action, String name,
-                                  PrintStream output) {
+    // Saves or restores a checkpoint
+    private void handleCheckpoint(
+            String action,
+            String name,
+            PrintStream output) {
+
         if (action.equals("save")) {
-            checkpointManager.saveCheckpoint(name, document);
-            output.println("Checkpoint saved: " + name);
-        } else if (action.equals("restore")) {
-            // Save the current view options before changing the document.
-            Renderer renderer = documentView.getRenderer();
-            LineBreaker breaker = documentView.getLineBreaker();
+
+            checkpointManager.saveCheckpoint(
+                    name, document);
+
+            output.println(
+                    "Checkpoint saved: " + name);
+        }
+        else if (action.equals("restore")) {
+
+            // Save current view settings
+            Renderer renderer =
+                    documentView.getRenderer();
+
+            LineBreaker breaker =
+                    documentView.getLineBreaker();
+
             int width = documentView.getWidth();
 
-            Document restored = checkpointManager.restoreCheckpoint(name);
+            // Restore saved document
+            Document restored =
+                    checkpointManager.restoreCheckpoint(name);
+
             document = restored;
 
-            // Noor's view and observer must point at the restored document.
-            documentView = new DocumentView(document, renderer, breaker, width);
-            statistics = new DocumentStatistics(document);
+            // Reconnect the presentation layer
+            documentView = new DocumentView(
+                    document,
+                    renderer,
+                    breaker,
+                    width);
+
+            statistics =
+                    new DocumentStatistics(document);
+
             document.addObserver(statistics);
 
-            output.println("Checkpoint restored: " + name);
+            // Use a fresh history for the restored document
+            setEditingBridge(
+                    new HistoryEditingBridge(document));
+
+            output.println(
+                    "Checkpoint restored: " + name);
+        }
+        else {
+            throw new IllegalArgumentException(
+                    "Unknown checkpoint action");
         }
     }
 
-
-    // Handles replacing the first match or every match
-    private void handleReplace(String name,
-                               List<String> args,
-                               PrintStream output) {
+    // Handles Replace First and Replace All
+    private void handleReplace(
+            String name,
+            List<String> args,
+            PrintStream output) {
 
         if (args.size() != 3) {
             throw new IllegalArgumentException(
@@ -257,11 +354,13 @@ public class EditorApp {
                             + " \"old text\" \"new text\" whole/substring");
         }
 
-        String searchText = args.get(0);
+        String oldText = args.get(0);
         String newText = args.get(1);
         String mode = args.get(2);
 
-        if (!mode.equals("whole") && !mode.equals("substring")) {
+        if (!mode.equals("whole")
+                && !mode.equals("substring")) {
+
             throw new IllegalArgumentException(
                     "Search mode must be whole or substring");
         }
@@ -271,11 +370,20 @@ public class EditorApp {
         List<SearchEngine.Replacement> replacements;
 
         if (name.equals("replace")) {
+
             replacements = searchEngine.planReplaceFirst(
-                    document, searchText, newText, wholeWord);
-        } else {
+                    document,
+                    oldText,
+                    newText,
+                    wholeWord);
+        }
+        else {
+
             replacements = searchEngine.planReplaceAll(
-                    document, searchText, newText, wholeWord);
+                    document,
+                    oldText,
+                    newText,
+                    wholeWord);
         }
 
         if (replacements.isEmpty()) {
@@ -283,34 +391,36 @@ public class EditorApp {
             return;
         }
 
-        if (editingBridge == null) {
-            throw new IllegalStateException(
-                    "Editing system is not connected yet");
-        }
+        requireEditingBridge();
 
-        // All replacements are passed as one operation
         editingBridge.executeReplacements(replacements);
 
-        output.println("Replacements completed: "
-                + replacements.size());
+        output.println(
+                "Replacements completed: "
+                        + replacements.size());
     }
 
-
-    // Handles macro recording. Replay still needs the editing/history system.
-
     // Starts, stops, or replays a macro
-    private void handleMacro(List<String> args, PrintStream output) {
+    private void handleMacro(
+            List<String> args,
+            PrintStream output) {
+
         String action = args.get(0);
 
         switch (action) {
+
             case "start":
                 macroRecorder.startRecording(args.get(1));
-                output.println("Recording started.");
+
+                output.println(
+                        "Recording started.");
                 break;
 
             case "stop":
                 macroRecorder.stopRecording();
-                output.println("Recording saved.");
+
+                output.println(
+                        "Recording saved.");
                 break;
 
             case "replay":
@@ -323,97 +433,139 @@ public class EditorApp {
         }
     }
 
-    // Replays a previously saved macro
-    private void replayMacro(String name, PrintStream output) {
+    // Replays saved macro commands
+    private void replayMacro(
+            String name,
+            PrintStream output) {
 
         if (macroRecorder.isRecording()) {
             throw new IllegalStateException(
                     "Stop recording before replaying a macro");
         }
 
-        List<String> savedCommands = macroRecorder.getCommands(name);
-        List<CommandParser.ParsedCommand> commands =
-                new java.util.ArrayList<>();
+        List<String> savedCommands =
+                macroRecorder.getCommands(name);
 
-        // Parse all commands before doing anything
+        List<CommandParser.ParsedCommand> commands =
+                new ArrayList<>();
+
+        // Parse every command before replay
         for (String line : savedCommands) {
             commands.add(parser.parse(line));
         }
 
         if (commands.isEmpty()) {
-            output.println("Macro replayed: " + name);
+            output.println(
+                    "Macro replayed: " + name);
             return;
         }
 
-        boolean allEditing = true;
-        boolean allReadOnly = true;
+        boolean allEditing = commands.stream()
+                .allMatch(command ->
+                        isEditingCommand(command.name()));
 
-        for (CommandParser.ParsedCommand command : commands) {
-            String type = command.name();
+        boolean allReadOnly = commands.stream()
+                .allMatch(command ->
+                        isReadOnlyMacroCommand(command.name()));
 
-            if (!isEditingCommand(type)) {
-                allEditing = false;
-            }
-
-            if (!isReadOnlyMacroCommand(type)) {
-                allReadOnly = false;
-            }
-        }
+        requireEditingBridge();
 
         if (allEditing) {
-            if (editingBridge == null) {
-                throw new IllegalStateException(
-                        "Editing system is not connected yet");
-            }
 
-            // One batch will become one history entry
+            // All edits become one undo-history entry
             editingBridge.executeBatch(commands);
         }
         else if (allReadOnly) {
+
             for (CommandParser.ParsedCommand command : commands) {
                 execute(command, output);
             }
         }
+        else if (editingBridge instanceof HistoryEditingBridge historyBridge) {
+
+            // Check supported commands before replay
+            for (CommandParser.ParsedCommand command : commands) {
+
+                if (!isEditingCommand(command.name())
+                        && !isReadOnlyMacroCommand(command.name())) {
+
+                    throw new IllegalArgumentException(
+                            "Unsupported macro command: "
+                                    + command.name());
+                }
+            }
+
+            // Run display commands in order,
+            // while recording edits as one undoable action
+            historyBridge.executeMacro(
+                    commands,
+                    command -> execute(command, output));
+        }
         else {
-            throw new IllegalArgumentException(
-                    "This macro contains unsupported or mixed commands");
+            throw new IllegalStateException(
+                    "Mixed macro replay needs "
+                            + "the real editing bridge");
         }
 
-        output.println("Macro replayed: " + name);
+        output.println(
+                "Macro replayed: " + name);
     }
 
-    // Commands that modify the document
+    // Checks whether a command edits the document
     private boolean isEditingCommand(String name) {
+
         return switch (name) {
+
             case "section", "paragraph", "insert", "delete",
-                 "replace", "replaceall", "move", "split",
-                 "merge", "format" -> true;
+                 "move", "split", "merge", "format",
+                 "replace", "replaceall" -> true;
+
             default -> false;
         };
     }
 
-    // Commands that can be replayed without changing the document
+    // Commands that do not edit the document
     private boolean isReadOnlyMacroCommand(String name) {
+
         return switch (name) {
+
             case "help", "stats", "find", "view",
                  "width", "breaker" -> true;
+
             default -> false;
         };
     }
 
+    // Starts the editor in console or script mode
+    public static void main(String[] args)
+            throws IOException {
 
-    public static void main(String[] args) throws IOException {
         EditorApp app = new EditorApp();
+
         if (args.length == 0) {
-            System.out.println("Document Editor started.");
-            System.out.println("Type help for commands.");
-            app.run(new InputStreamReader(System.in), System.out);
-        } else if (args.length == 1) {
-            try (BufferedReader reader = Files.newBufferedReader(Path.of(args[0]))) {
+
+            System.out.println(
+                    "Document Editor started.");
+
+            System.out.println(
+                    "Type help for commands.");
+
+            app.run(
+                    new InputStreamReader(System.in),
+                    System.out);
+        }
+        else if (args.length == 1) {
+
+            try (BufferedReader reader =
+                         Files.newBufferedReader(
+                                 Path.of(args[0]))) {
+
                 app.run(reader, System.out);
             }
-        } else {
-            System.err.println("Usage: EditorApp [script-file]");
+        }
+        else {
+            System.err.println(
+                    "Usage: EditorApp [script-file]");
         }
     }
 }
