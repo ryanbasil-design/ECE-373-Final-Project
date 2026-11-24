@@ -9,6 +9,13 @@ import java.util.List;
  */
 public class GreedyLineBreaker implements LineBreaker {
 
+    /**
+     * breaks the text by fitting as many words as possible on each line
+     *
+     * @param text the text to break
+     * @param width the max characters per line
+     * @return the lines in order
+     */
     @Override
     public List<String> breakLines(String text, int width) {
         if (width < 1) {

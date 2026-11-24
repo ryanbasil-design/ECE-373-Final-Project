@@ -18,6 +18,13 @@ import java.util.List;
  */
 public class BalancedLineBreaker implements LineBreaker {
 
+    /**
+     * breaks the text into lines so the line lengths are as even as possible
+     *
+     * @param text the text to break
+     * @param width the max characters per line
+     * @return the lines in order
+     */
     @Override
     public List<String> breakLines(String text, int width) {
         if (width < 1) {

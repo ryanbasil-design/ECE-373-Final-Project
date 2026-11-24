@@ -30,6 +30,9 @@ public class EditorApp {
     private DocumentStatistics statistics;
     private EditingBridge editingBridge;
 
+    /**
+     * makes the editor with an empty document and connects the view and statistics
+     */
     public EditorApp() {
 
         document = new Document();
@@ -49,10 +52,20 @@ public class EditorApp {
                 new HistoryEditingBridge(document));
     }
 
+    /**
+     * gets the document being edited
+     *
+     * @return the current document
+     */
     public Document getDocument() {
         return document;
     }
 
+    /**
+     * connects the editing and history system
+     *
+     * @param bridge the editing bridge to use
+     */
     public void setEditingBridge(EditingBridge bridge) {
 
         if (bridge == null) {
@@ -63,7 +76,13 @@ public class EditorApp {
         this.editingBridge = bridge;
     }
 
-    // Reads commands from console or script
+    /**
+     * reads commands from the console or a script and runs them until exit
+     *
+     * @param input where the commands come from
+     * @param output where results and errors are printed
+     * @throws IOException if the input cant be read
+     */
     public void run(
             Reader input,
             PrintStream output) throws IOException {
@@ -536,7 +555,12 @@ public class EditorApp {
         };
     }
 
-    // Starts the editor in console or script mode
+    /**
+     * starts the editor in console mode, or runs a script if a file is given
+     *
+     * @param args optional script file path
+     * @throws IOException if the script file cant be read
+     */
     public static void main(String[] args)
             throws IOException {
 

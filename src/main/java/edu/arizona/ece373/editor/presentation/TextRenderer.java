@@ -14,6 +14,14 @@ import java.util.Objects;
  */
 public abstract class TextRenderer implements Renderer {
 
+    /**
+     * renders the whole document by walking through every section and paragraph
+     *
+     * @param document the document to render
+     * @param breaker how lines get broken
+     * @param width the max characters per line
+     * @return the rendered text
+     */
     @Override
     public final String render(Document document, LineBreaker breaker, int width) {
         Objects.requireNonNull(document, "document must not be null");

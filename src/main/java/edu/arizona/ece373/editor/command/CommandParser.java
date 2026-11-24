@@ -18,16 +18,32 @@ public class CommandParser {
             "width", "breaker", "stats", "help", "exit"
     );
 
-    // Holds the command and its arguments
+    /**
+     * holds a command name and its arguments
+     *
+     * @param name the command name
+     * @param arguments the command arguments
+     */
     public record ParsedCommand(
             String name, List<String> arguments) {
 
+        /**
+         * makes a parsed command and copies the arguments so they cant be changed
+         *
+         * @param name the command name
+         * @param arguments the command arguments
+         */
         public ParsedCommand {
             arguments = List.copyOf(arguments);
         }
     }
 
-    // Converts user input into a command
+    /**
+     * turns a line the user typed into a command and checks its arguments
+     *
+     * @param input the line the user typed
+     * @return the parsed command
+     */
     public ParsedCommand parse(String input) {
 
         if (input == null || input.isBlank()) {

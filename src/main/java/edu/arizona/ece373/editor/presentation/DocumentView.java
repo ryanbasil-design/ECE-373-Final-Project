@@ -4,6 +4,9 @@ import edu.arizona.ece373.editor.engine.Document;
 
 import java.util.Objects;
 
+/**
+ * shows the document using a renderer, a line breaker and a line width
+ */
 public class DocumentView {
 
     /** Line width used when none is specified. */

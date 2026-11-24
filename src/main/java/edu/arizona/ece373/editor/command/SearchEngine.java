@@ -11,19 +11,40 @@ import java.util.Objects;
  */
 public class SearchEngine {
 
-    // Stores where a match was found
+    /**
+     * stores where a match was found
+     *
+     * @param paragraph the paragraph with the match
+     * @param start where the match starts
+     * @param length how long the match is
+     */
     public record SearchMatch(Paragraph paragraph,
                               int start, int length) {
     }
 
-    // Describes one replacement without changing the document
+    /**
+     * describes one replacement without changing the document
+     *
+     * @param paragraph the paragraph to change
+     * @param start where the match starts
+     * @param length how long the match is
+     * @param newText the text to put in
+     */
     public record Replacement(Paragraph paragraph,
                               int start,
                               int length,
                               String newText) {
     }
 
-    // Prepares a replacement for the first match
+    /**
+     * plans a replacement for the first match only
+     *
+     * @param document the document to search
+     * @param searchText the text to find
+     * @param replacement the new text
+     * @param wholeWord true to only match whole words
+     * @return the replacement, or an empty list if nothing matched
+     */
     public List<Replacement> planReplaceFirst(
             Document document,
             String searchText,
@@ -51,7 +72,15 @@ public class SearchEngine {
                 replacement));
     }
 
-    // Prepares all replacements in reverse order
+    /**
+     * plans replacements for every match, last match first so earlier positions dont shift
+     *
+     * @param document the document to search
+     * @param searchText the text to find
+     * @param replacement the new text
+     * @param wholeWord true to only match whole words
+     * @return the replacements in reverse order
+     */
     public List<Replacement> planReplaceAll(
             Document document,
             String searchText,
@@ -82,7 +111,14 @@ public class SearchEngine {
     }
 
 
-    // Searches the entire document
+    /**
+     * searches the whole document including section titles
+     *
+     * @param document the document to search
+     * @param searchText the text to find
+     * @param wholeWord true to only match whole words
+     * @return every match in document order
+     */
     public List<SearchMatch> find(Document document,
                                   String searchText,
                                   boolean wholeWord) {

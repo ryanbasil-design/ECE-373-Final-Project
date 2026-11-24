@@ -8,10 +8,18 @@ import java.util.List;
  */
 public interface EditingBridge {
 
-    // Executes one editing command
+    /**
+     * runs one editing command
+     *
+     * @param command the parsed command
+     */
     void execute(CommandParser.ParsedCommand command);
 
-    // Executes multiple commands as one undoable operation
+    /**
+     * runs several commands as one undoable change
+     *
+     * @param commands the parsed commands in order
+     */
     default void executeBatch(
             List<CommandParser.ParsedCommand> commands) {
 
@@ -19,7 +27,11 @@ public interface EditingBridge {
                 "Batch editing is not connected yet");
     }
 
-    // Executes planned text replacements
+    /**
+     * runs planned text replacements as one undoable change
+     *
+     * @param replacements the replacements to make
+     */
     default void executeReplacements(
             List<SearchEngine.Replacement> replacements) {
 
@@ -27,9 +39,13 @@ public interface EditingBridge {
                 "Replacement editing is not connected yet");
     }
 
-    // Undoes the previous change
+    /**
+     * undoes the last change
+     */
     void undo();
 
-    // Redoes an undone change
+    /**
+     * redoes the last undone change
+     */
     void redo();
 }
