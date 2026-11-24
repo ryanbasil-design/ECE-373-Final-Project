@@ -12,12 +12,19 @@ public class CheckpointManager {
 
     private final Map<String, CheckpointSnapshot> checkpoints;
 
-    // Creates an empty checkpoint manager
+    /**
+     * makes an empty checkpoint manager
+     */
     public CheckpointManager() {
         checkpoints = new HashMap<>();
     }
 
-    // Saves the current document using a checkpoint name
+    /**
+     * saves a copy of the document under a checkpoint name
+     *
+     * @param name the checkpoint name
+     * @param document the document to save
+     */
     public void saveCheckpoint(String name, Document document) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
@@ -28,7 +35,12 @@ public class CheckpointManager {
         checkpoints.put(name, new CheckpointSnapshot(document));
     }
 
-    // Returns a copy of the document saved at a checkpoint
+    /**
+     * gets a copy of the document saved under a checkpoint name
+     *
+     * @param name the checkpoint name
+     * @return a copy of the saved document
+     */
     public Document restoreCheckpoint(String name) {
         if (!checkpoints.containsKey(name)) {
             throw new IllegalArgumentException(
@@ -39,12 +51,21 @@ public class CheckpointManager {
         return checkpoints.get(name).getDocument();
     }
 
-    // Checks whether a checkpoint exists
+    /**
+     * checks if a checkpoint with this name exists
+     *
+     * @param name the checkpoint name
+     * @return true if it exists
+     */
     public boolean hasCheckpoint(String name) {
         return checkpoints.containsKey(name);
     }
 
-    // Returns the number of saved checkpoints
+    /**
+     * gets how many checkpoints are saved
+     *
+     * @return the number of checkpoints
+     */
     public int getCheckpointCount() {
         return checkpoints.size();
     }

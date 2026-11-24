@@ -12,7 +12,11 @@ public class CheckpointSnapshot {
 
     private final Document savedDocument;
 
-    // Creates a snapshot of the current document
+    /**
+     * makes a snapshot by copying the whole document
+     *
+     * @param document the document to copy
+     */
     public CheckpointSnapshot(Document document) {
         if (document == null) {
             throw new IllegalArgumentException("Document cannot be null");
@@ -21,7 +25,11 @@ public class CheckpointSnapshot {
         savedDocument = copyDocument(document);
     }
 
-    // Returns a separate copy of the saved document
+    /**
+     * gets a separate copy of the saved document so the snapshot doesnt change
+     *
+     * @return a copy of the saved document
+     */
     public Document getDocument() {
         return copyDocument(savedDocument);
     }

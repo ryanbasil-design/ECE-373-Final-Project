@@ -52,18 +52,41 @@ public interface ElementContainer {
     static ElementContainer of(Document document) {
         Objects.requireNonNull(document, "document must not be null");
         return new ElementContainer() {
+            /**
+             * gets the elements in order
+             *
+             * @return the elements
+             */
             public List<DocumentElement> elements() {
                 return document.getElements();
             }
 
+            /**
+             * adds an element at an index
+             *
+             * @param index where to add it
+             * @param element the element to add
+             */
             public void add(int index, DocumentElement element) {
                 document.add(index, element);
             }
 
+            /**
+             * removes the element at an index
+             *
+             * @param index the index to remove
+             * @return the removed element
+             */
             public DocumentElement remove(int index) {
                 return document.remove(index);
             }
 
+            /**
+             * finds the index of an element
+             *
+             * @param element the element to look for
+             * @return its index, or -1
+             */
             public int indexOf(DocumentElement element) {
                 return document.indexOf(element);
             }
@@ -80,18 +103,41 @@ public interface ElementContainer {
     static ElementContainer of(Section section) {
         Objects.requireNonNull(section, "section must not be null");
         return new ElementContainer() {
+            /**
+             * gets the elements in order
+             *
+             * @return the elements
+             */
             public List<DocumentElement> elements() {
                 return section.getChildren();
             }
 
+            /**
+             * adds an element at an index
+             *
+             * @param index where to add it
+             * @param element the element to add
+             */
             public void add(int index, DocumentElement element) {
                 section.add(index, element);
             }
 
+            /**
+             * removes the element at an index
+             *
+             * @param index the index to remove
+             * @return the removed element
+             */
             public DocumentElement remove(int index) {
                 return section.remove(index);
             }
 
+            /**
+             * finds the index of an element
+             *
+             * @param element the element to look for
+             * @return its index, or -1
+             */
             public int indexOf(DocumentElement element) {
                 return section.indexOf(element);
             }

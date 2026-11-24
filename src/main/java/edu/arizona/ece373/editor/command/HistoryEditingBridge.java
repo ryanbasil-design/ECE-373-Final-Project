@@ -16,6 +16,11 @@ public class HistoryEditingBridge implements EditingBridge {
     private final Document document;
     private final CommandHistory history;
 
+    /**
+     * makes a bridge that edits the given document and keeps its undo history
+     *
+     * @param document the document to edit
+     */
     public HistoryEditingBridge(Document document) {
         if (document == null) {
             throw new IllegalArgumentException(
@@ -26,14 +31,22 @@ public class HistoryEditingBridge implements EditingBridge {
         this.history = new CommandHistory(document);
     }
 
-    // Executes one editing command
+    /**
+     * runs one editing command so it can be undone
+     *
+     * @param command the parsed command
+     */
     @Override
     public void execute(CommandParser.ParsedCommand command) {
         EditCommand edit = createCommand(command);
         history.execute(edit);
     }
 
-    // Executes multiple commands as one undoable operation
+    /**
+     * runs several commands as one undoable change
+     *
+     * @param commands the parsed commands in order
+     */
     @Override
     public void executeBatch(
             List<CommandParser.ParsedCommand> commands) {
@@ -48,7 +61,12 @@ public class HistoryEditingBridge implements EditingBridge {
                 new RecordedSequenceCommand(commands, null));
     }
 
-    // Replays editing and display commands in original order
+    /**
+     * replays editing and display commands in their original order as one undoable change
+     *
+     * @param commands the recorded commands
+     * @param displayCommand runs the display commands
+     */
     public void executeMacro(
             List<CommandParser.ParsedCommand> commands,
             Consumer<CommandParser.ParsedCommand> displayCommand) {
@@ -62,7 +80,11 @@ public class HistoryEditingBridge implements EditingBridge {
                         commands, displayCommand));
     }
 
-    // Executes planned replacements as one history entry
+    /**
+     * runs planned replacements as one undoable change
+     *
+     * @param replacements the replacements to make
+     */
     @Override
     public void executeReplacements(
             List<SearchEngine.Replacement> replacements) {
@@ -447,6 +469,9 @@ public class HistoryEditingBridge implements EditingBridge {
             this.display = display;
         }
 
+        /**
+         * runs this change
+         */
         @Override
         public void execute() {
 
@@ -535,6 +560,9 @@ public class HistoryEditingBridge implements EditingBridge {
             }
         }
 
+        /**
+         * undoes this change
+         */
         @Override
         public void undo() {
 
@@ -716,6 +744,9 @@ public class HistoryEditingBridge implements EditingBridge {
             this.destination = destination;
         }
 
+        /**
+         * runs this change
+         */
         @Override
         public void execute() {
 
@@ -785,6 +816,9 @@ public class HistoryEditingBridge implements EditingBridge {
             }
         }
 
+        /**
+         * undoes this change
+         */
         @Override
         public void undo() {
 
@@ -801,11 +835,17 @@ public class HistoryEditingBridge implements EditingBridge {
         }
     }
 
+    /**
+     * undoes this change
+     */
     @Override
     public void undo() {
         history.undo();
     }
 
+    /**
+     * redoes the last undone change
+     */
     @Override
     public void redo() {
         history.redo();
